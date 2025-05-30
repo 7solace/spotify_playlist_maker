@@ -142,7 +142,7 @@ if auth_code:
             except AttributeError:
                 st.experimental_set_query_params()
             st.success("Spotify kimlik doğrulaması başarılı!")
-            st.info("Harika! Artık playlist oluşturma formunu kullanabilirsiniz.")
+            # st.info("Harika! Artık playlist oluşturma formunu kullanabilirsiniz.") # Bu mesajı kaldırdım, rerun sonrası direkt forma geçecek
             st.rerun() 
         except Exception as e:
             st.error(f"Spotify token alınırken hata: {e}")
@@ -162,12 +162,8 @@ if st.session_state.spotify_client and st.session_state.token_info and not sp_oa
         st.session_state.token_info = None
         st.session_state.spotify_client = None
         st.session_state.auth_code_processed_flag = False 
-        auth_url = sp_oauth.get_authorize_url()
-        # st.markdown(f"Lütfen Spotify'a tekrar bağlanmak için **[bu linke tıklayın]({auth_url})**.", unsafe_allow_html=True)
-        # Yukarıdaki satır yerine direkt link_button kullanalım ki hata durumunda da buton görünsün.
-        # Bu durum aslında aşağıdaki 'else' bloğuna düşmesini sağlamalı. Şimdilik rerun ile bu durum çözülüyor.
         if st.button("Spotify Bağlantı Hatası - Tekrar Bağlanmayı Dene"):
-             st.session_state.clear() # Her şeyi temizle ve yeniden başla
+             st.session_state.clear() 
              st.rerun()
         st.stop()
 
@@ -202,32 +198,28 @@ if st.session_state.spotify_client and st.session_state.token_info and not sp_oa
         st.rerun()
 
 else:
-    # --- KULLANICI GİRİŞ YAPMAMIŞ: YENİ ESTETİK GİRİŞ EKRANINI GÖSTER ---
-    st.write("") # Biraz boşluk
-    # Ortalamak için sütunlar kullanabiliriz
-    col1, col2, col3 = st.columns([1,2,1]) # Ortadaki sütun daha geniş
-    with col2:
-        st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png", width=150)
-        st.header("Spotify Hesabınla Bağlan") # Subheader yerine header daha dikkat çekici
+    # --- KULLANICI GİRİŞ YAPMAMIŞ: YENİ ESTETİK GİRİŞ EKRANINI GÖSTER (GÜNCELLENDİ) ---
+    st.write("") 
+    col1_main, col2_main, col3_main = st.columns([0.5, 2, 0.5]) # Kenar boşluklarını biraz daha daralttım
+    with col2_main: # Tüm giriş ekranı içeriği bu ortadaki sütuna
+        st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png", width=120) # Logoyu biraz küçülttüm
+        st.header("Spotify Hesabınla Bağlan")
         st.write("Harika çalma listeleri oluşturmak ve müzik dünyasına dalmak için Spotify hesabınla giriş yapman gerekiyor.")
-        st.write("") # Boşluk
+        st.write("") 
     
-    try:
-        auth_url = sp_oauth.get_authorize_url()
-        # Butonu da ortadaki sütuna alalım
-        with col2:
-             st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary")
-        st.caption("Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.")
-    except Exception as e:
-        with col2: # Hata mesajını da ortala
+        try:
+            auth_url = sp_oauth.get_authorize_url()
+            st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary")
+            st.caption("Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.")
+        except Exception as e:
             st.error(f"Spotify yetkilendirme linki oluşturulurken bir sorun oluştu: {e}")
             st.exception(e)
-    
-    st.write("---") # Ayırıcı çizgi
-    st.caption("🎧 Ruh haline göre çalsın, sen keyfine bak!") # Slogan eklendi
+        
+        st.write("---") 
+        st.caption("🎧 Ruh haline göre çalsın, sen keyfine bak!")
 
 
-# --- Sidebar (Discord bilgisi eklendi) ---
+# --- Sidebar (Geliştirici ismi kaldırıldı) ---
 st.sidebar.header("Nasıl Kullanılır?")
 st.sidebar.info(
     "1. Eğer istenirse, 'Spotify ile Bağlan' butonuna tıklayarak giriş yapın ve izin verin.\n"
@@ -236,8 +228,8 @@ st.sidebar.info(
     "4. Playlistiniz Spotify hesabınızda oluşturulacak ve linki burada gösterilecektir."
 )
 st.sidebar.markdown("---")
-st.sidebar.subheader("Geliştirici") # Yeni başlık
-st.sidebar.markdown("👤 Arda (grizi)") # İsim
-st.sidebar.markdown("👾 Discord: **7grizi**") # Discord kullanıcı adı
+st.sidebar.subheader("Geliştirici")
+# st.sidebar.markdown("👤 Arda (grizi)") # Bu satır kaldırıldı
+st.sidebar.markdown("👾 Discord: **7grizi**") 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"© {2025} Playlist Oluşturucu")
