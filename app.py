@@ -3,26 +3,20 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyOauthError
 
-# --- Streamlit Sayfa ve Tema Ayarları ---
+# --- Streamlit Sayfa ve Tema Ayarları (GÜNCELLENDİ) ---
 st.set_page_config(
     page_title="Playlist Oluşturucu", 
     page_icon="🎶", 
     layout="centered",
-    initial_sidebar_state="auto", # Sidebar başlangıçta açık veya kapalı olabilir ("expanded" veya "collapsed")
-    # --- Yeni Tema Önerisi ---
-    # Streamlit'in kendi tema parametreleri doğrudan set_page_config içinde kullanılır.
-    # Ancak, Streamlit'in en son versiyonlarında tema ayarları .streamlit/config.toml dosyası üzerinden
-    # veya doğrudan tema="light"/"dark" şeklinde yapılır.
-    # Detaylı renk ayarları için config.toml daha esnektir.
-    # Şimdilik varsayılan koyu temayı kullanıp, buton rengi gibi şeyleri Streamlit'in kendi
-    # stiliyle bırakalım. İstersen daha sonra config.toml ile detaylı renk ayarı yaparız.
-    # Eğer Streamlit Cloud'da bir tema seçeneği varsa oradan da ayarlanabilir.
-    # Şimdilik bu satırları yorumda bırakıyorum, varsayılan (genellikle koyu) tema geçerli olacaktır.
-    # primaryColor="#1DB954",       # Spotify Yeşili (butonlar, vurgular)
-    # backgroundColor="#121212",   # Koyu Spotify Siyahı
-    # secondaryBackgroundColor="#181818", # Biraz daha açık bir ton (sidebar vb.)
-    # textColor="#FFFFFF",         # Beyaz yazı
-    # font="sans-serif"            # Modern, okunması kolay bir font
+    initial_sidebar_state="auto",
+    # --- YENİ TEMA AYARI: Ana Renk Spotify Yeşili ---
+    # primaryColor="#FF4B4B" # Bu bir önceki temanın kırmızısıydı (eğer kullanıyorsak)
+    # Streamlit'in en son versiyonlarında tema renkleri doğrudan config.toml veya
+    # Streamlit Cloud arayüzünden ayarlanır. 
+    # primaryColor parametresi doğrudan set_page_config içinde olmayabilir.
+    # Eğer buton rengi değişmezse, bunu Streamlit Cloud'un tema ayarlarından yapmayı deneriz.
+    # Şimdilik bu satırı yorumda bırakıyorum, butonun tipi "primary" olduğu için temanın ana rengini alacaktır.
+    # primaryColor="#1DB954" 
 )
 
 # --- Spotify API Kimlik Bilgileri ve Ayarları ---
@@ -60,7 +54,7 @@ def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public
             return playlist_url 
         sp.playlist_add_items(playlist_id, track_uris)
         st.success(f"'{playlist_name}' adında playlist başarıyla oluşturuldu!")
-        st.link_button("🔗 Oluşturulan Playlisti Spotify'da Aç", playlist_url, use_container_width=True, type="primary") # type="primary" butonu vurgular
+        st.link_button("🔗 Oluşturulan Playlisti Spotify'da Aç", playlist_url, use_container_width=True, type="primary")
         return playlist_url
     except Exception as e:
         st.error(f"Spotify playlisti oluşturulurken veya şarkılar eklenirken hata: {e}")
@@ -119,11 +113,19 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
         st.exception(e) 
         return []
 
-# --- Streamlit Arayüzü Başlangıcı ---
-# st.set_page_config yukarıya taşındı
+# --- Streamlit Arayüzü Başlangıcı (Başlık ve Alt Başlık Ortalandı) ---
+# st.title("🎶 Spotify Playlist Oluşturucu 🎶") # Eski sola yaslı başlık
+# st.markdown("Sevdiğin türe ve sanatçıya göre şarkıları bul ve **otomatik olarak Spotify playlisti oluştur!**") # Eski sola yaslı alt başlık
 
-st.title("🎶 Spotify Playlist Oluşturucu 🎶")
-st.markdown("Sevdiğin türe ve sanatçıya göre şarkıları bul ve **otomatik olarak Spotify playlisti oluştur!**")
+# Yeni Ortalanmış Başlık ve Alt Başlık
+st.markdown("""
+<div style="text-align: center;">
+    <h1>🎶 Spotify Playlist Oluşturucu 🎶</h1>
+    <p>Sevdiğin türe ve sanatçıya göre şarkıları bul ve <b>otomatik olarak Spotify playlisti oluştur!</b></p>
+</div>
+<br>
+""", unsafe_allow_html=True)
+
 
 if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
     st.error("Spotify API anahtarları (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) Streamlit Secrets'da ayarlanmamış veya okunamadı! Lütfen uygulamanın Streamlit Cloud ayarlarından kontrol edin.")
@@ -225,7 +227,7 @@ else:
         st.write("") 
         try:
             auth_url = sp_oauth.get_authorize_url()
-            st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary") # type="primary" butonu vurgular
+            st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary")
             st.caption("Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.")
         except Exception as e:
             st.error(f"Spotify yetkilendirme linki oluşturulurken bir sorun oluştu: {e}")
@@ -233,8 +235,7 @@ else:
         st.write("---") 
         st.caption("🎧 Ruh haline göre çalsın, sen keyfine bak!")
 
-
-# --- Sidebar (Discord ve Geliştirici Seçimi eklendi) ---
+# --- Sidebar ---
 st.sidebar.header("Nasıl Kullanılır?")
 st.sidebar.info(
     "1. Eğer istenirse, 'Spotify ile Bağlan' butonuna tıklayarak giriş yapın ve izin verin.\n"
@@ -246,9 +247,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("Geliştirici")
 st.sidebar.markdown("👾 Discord: **7grizi**") 
 st.sidebar.markdown("---")
-st.sidebar.subheader("✨ Geliştiricinin Ruh Hali ✨") # Yeni bölüm başlığı
-st.sidebar.markdown("🎶 **Feel It** (Invincible)") # Şarkı adı ve kaynağı
-# İstersen buraya şarkının bir Youtube linkini de ekleyebiliriz:
-# st.sidebar.markdown("[Dinle!](YOUTUBE_LINKI_BURAYA)")
+st.sidebar.subheader("✨ Geliştiricinin Ruh Hali ✨")
+st.sidebar.markdown("🎶 **Feel It** (Invincible)") 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"© {2025} Playlist Oluşturucu")
