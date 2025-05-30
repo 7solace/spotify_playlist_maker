@@ -3,6 +3,28 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyOauthError
 
+# --- Streamlit Sayfa ve Tema Ayarları ---
+st.set_page_config(
+    page_title="Playlist Oluşturucu", 
+    page_icon="🎶", 
+    layout="centered",
+    initial_sidebar_state="auto", # Sidebar başlangıçta açık veya kapalı olabilir ("expanded" veya "collapsed")
+    # --- Yeni Tema Önerisi ---
+    # Streamlit'in kendi tema parametreleri doğrudan set_page_config içinde kullanılır.
+    # Ancak, Streamlit'in en son versiyonlarında tema ayarları .streamlit/config.toml dosyası üzerinden
+    # veya doğrudan tema="light"/"dark" şeklinde yapılır.
+    # Detaylı renk ayarları için config.toml daha esnektir.
+    # Şimdilik varsayılan koyu temayı kullanıp, buton rengi gibi şeyleri Streamlit'in kendi
+    # stiliyle bırakalım. İstersen daha sonra config.toml ile detaylı renk ayarı yaparız.
+    # Eğer Streamlit Cloud'da bir tema seçeneği varsa oradan da ayarlanabilir.
+    # Şimdilik bu satırları yorumda bırakıyorum, varsayılan (genellikle koyu) tema geçerli olacaktır.
+    # primaryColor="#1DB954",       # Spotify Yeşili (butonlar, vurgular)
+    # backgroundColor="#121212",   # Koyu Spotify Siyahı
+    # secondaryBackgroundColor="#181818", # Biraz daha açık bir ton (sidebar vb.)
+    # textColor="#FFFFFF",         # Beyaz yazı
+    # font="sans-serif"            # Modern, okunması kolay bir font
+)
+
 # --- Spotify API Kimlik Bilgileri ve Ayarları ---
 CLIENT_ID = st.secrets.get("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = st.secrets.get("SPOTIPY_CLIENT_SECRET")
@@ -38,7 +60,7 @@ def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public
             return playlist_url 
         sp.playlist_add_items(playlist_id, track_uris)
         st.success(f"'{playlist_name}' adında playlist başarıyla oluşturuldu!")
-        st.link_button("🔗 Oluşturulan Playlisti Spotify'da Aç", playlist_url, use_container_width=True)
+        st.link_button("🔗 Oluşturulan Playlisti Spotify'da Aç", playlist_url, use_container_width=True, type="primary") # type="primary" butonu vurgular
         return playlist_url
     except Exception as e:
         st.error(f"Spotify playlisti oluşturulurken veya şarkılar eklenirken hata: {e}")
@@ -98,7 +120,8 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
         return []
 
 # --- Streamlit Arayüzü Başlangıcı ---
-st.set_page_config(page_title="Playlist Oluşturucu", page_icon="🎶", layout="centered")
+# st.set_page_config yukarıya taşındı
+
 st.title("🎶 Spotify Playlist Oluşturucu 🎶")
 st.markdown("Sevdiğin türe ve sanatçıya göre şarkıları bul ve **otomatik olarak Spotify playlisti oluştur!**")
 
@@ -141,8 +164,6 @@ if auth_code:
                 st.query_params.clear()
             except AttributeError:
                 st.experimental_set_query_params()
-            st.success("Spotify kimlik doğrulaması başarılı!")
-            # st.info("Harika! Artık playlist oluşturma formunu kullanabilirsiniz.") # Bu mesajı kaldırdım, rerun sonrası direkt forma geçecek
             st.rerun() 
         except Exception as e:
             st.error(f"Spotify token alınırken hata: {e}")
@@ -151,9 +172,7 @@ if auth_code:
             st.session_state.spotify_client = None
             st.session_state.auth_code_processed_flag = False
 
-# --- Arayüzün Ana Mantığı: Giriş Yapılmış mı, Yapılmamış mı? (GÜNCELLENDİ) ---
 if st.session_state.spotify_client and st.session_state.token_info and not sp_oauth.is_token_expired(st.session_state.token_info):
-    # --- KULLANICI GİRİŞ YAPMIŞ: Playlist Oluşturma Formunu Göster ---
     try:
         user_info = st.session_state.spotify_client.me()
         st.success(f"Hoş geldin, {user_info.get('display_name', 'kullanıcı')}! Spotify'a bağlısın.")
@@ -196,30 +215,26 @@ if st.session_state.spotify_client and st.session_state.token_info and not sp_oa
         except AttributeError:
             st.experimental_set_query_params()
         st.rerun()
-
 else:
-    # --- KULLANICI GİRİŞ YAPMAMIŞ: YENİ ESTETİK GİRİŞ EKRANINI GÖSTER (GÜNCELLENDİ) ---
     st.write("") 
-    col1_main, col2_main, col3_main = st.columns([0.5, 2, 0.5]) # Kenar boşluklarını biraz daha daralttım
-    with col2_main: # Tüm giriş ekranı içeriği bu ortadaki sütuna
-        st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png", width=120) # Logoyu biraz küçülttüm
-        st.header("Spotify Hesabınla Bağlan")
+    col1_main, col2_main, col3_main = st.columns([0.5, 2, 0.5]) 
+    with col2_main: 
+        st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png", width=120) 
+        st.header("Spotify Hesabınla Bağlan") 
         st.write("Harika çalma listeleri oluşturmak ve müzik dünyasına dalmak için Spotify hesabınla giriş yapman gerekiyor.")
         st.write("") 
-    
         try:
             auth_url = sp_oauth.get_authorize_url()
-            st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary")
+            st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary") # type="primary" butonu vurgular
             st.caption("Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.")
         except Exception as e:
             st.error(f"Spotify yetkilendirme linki oluşturulurken bir sorun oluştu: {e}")
             st.exception(e)
-        
         st.write("---") 
         st.caption("🎧 Ruh haline göre çalsın, sen keyfine bak!")
 
 
-# --- Sidebar (Geliştirici ismi kaldırıldı) ---
+# --- Sidebar (Discord ve Geliştirici Seçimi eklendi) ---
 st.sidebar.header("Nasıl Kullanılır?")
 st.sidebar.info(
     "1. Eğer istenirse, 'Spotify ile Bağlan' butonuna tıklayarak giriş yapın ve izin verin.\n"
@@ -229,7 +244,11 @@ st.sidebar.info(
 )
 st.sidebar.markdown("---")
 st.sidebar.subheader("Geliştirici")
-# st.sidebar.markdown("👤 Arda (grizi)") # Bu satır kaldırıldı
 st.sidebar.markdown("👾 Discord: **7grizi**") 
+st.sidebar.markdown("---")
+st.sidebar.subheader("✨ Geliştiricinin Ruh Hali ✨") # Yeni bölüm başlığı
+st.sidebar.markdown("🎶 **Feel It** (Invincible)") # Şarkı adı ve kaynağı
+# İstersen buraya şarkının bir Youtube linkini de ekleyebiliriz:
+# st.sidebar.markdown("[Dinle!](YOUTUBE_LINKI_BURAYA)")
 st.sidebar.markdown("---")
 st.sidebar.caption(f"© {2025} Playlist Oluşturucu")
