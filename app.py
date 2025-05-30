@@ -16,7 +16,6 @@ SCOPE = "playlist-modify-public playlist-modify-private"
 # --- Spotify Kimlik Doğrulama Fonksiyonu (open_browser varsayılana bırakıldı - True) ---
 def get_spotify_oauth():
     if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
-        # Bu print, Streamlit Cloud loglarında görünür, UI'da değil.
         print("HATA: API Kimlik bilgileri (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) Secrets'da eksik veya okunamadı!")
         return None 
     return SpotifyOAuth(
@@ -24,7 +23,6 @@ def get_spotify_oauth():
         client_secret=CLIENT_SECRET,
         redirect_uri=REDIRECT_URI, 
         scope=SCOPE
-        # open_browser=True (varsayılan)
     )
 
 # --- Playlist Oluşturma Fonksiyonu (DEBUG mesajları eklendi) ---
@@ -64,7 +62,7 @@ def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public
     except Exception as e:
         st.write(f"DEBUG: create_spotify_playlist_with_tracks içinde hata: {str(e)}")
         st.error(f"Spotify playlisti oluşturulurken veya şarkılar eklenirken hata: {e}")
-        st.exception(e)
+        st.exception(e) 
         return None
 
 # --- Ana Arama ve Listeleme Fonksiyonu (DEBUG mesajları eklendi) ---
@@ -79,7 +77,7 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
     else: 
         info_mesaji += "" 
     info_mesaji += f" {sarki_sayisi} şarkı aranıyor..."
-    # st.info(info_mesaji) # Bu mesajı DEBUG mesajları varken kapatalım, çok kalabalık olmasın
+    # st.info(info_mesaji) # DEBUG mesajları varken bu kapalı kalabilir
     
     query_parts = []
     if muzik_turu:
@@ -92,7 +90,7 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
         return []
         
     query = " ".join(query_parts)
-    st.info(f"Gönderilen sorgu: {query}") # Bu kalsın, önemli
+    st.info(f"Gönderilen sorgu: {query}") # Bu kalsın
 
     st.write("DEBUG: spotify_sarki_ara_ve_goster fonksiyonu başladı.")
     try:
@@ -113,7 +111,6 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
 
         st.subheader("🎶 Bulunan Şarkılar (Playlist'e Eklenmek Üzere): 🎶")
         for i, track_item in enumerate(tracks):
-            # ... (şarkı gösterme kısmı aynı, bir önceki koddan kopyalayabilirsin) ...
             sarki_adi = track_item.get('name', 'Bilinmeyen Şarkı')
             sanatcilar_list_api = [artist.get('name', 'Bilinmeyen Sanatçı') for artist in track_item.get('artists', [])]
             sanatcilar_gosterim = ", ".join(sanatcilar_list_api)
@@ -158,17 +155,15 @@ if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI :
     st.caption("Eğer bu mesajı yerelde görüyorsanız, kodun en başındaki CLIENT_ID, CLIENT_SECRET ve REDIRECT_URI değişkenlerine kendi bilgilerinizi girmeniz veya .streamlit/secrets.toml dosyası oluşturmanız gerekir.")
     st.stop()
 
-# sp_oauth en başta tanımlanmalı ki her yerde kullanılabilsin.
 try:
     sp_oauth = get_spotify_oauth() 
     if sp_oauth is None: 
-        st.error("Spotify OAuth ayarları başlatılamadı. API anahtarları (Secrets) doğru girildi mi?")
+        st.error("Spotify OAuth ayarları başlatılamadı. API anahtarları (Secrets) doğru girildi mi veya get_spotify_oauth içinde bir sorun mu var?")
         st.stop()
 except Exception as e_oauth_init:
     st.error(f"Spotify OAuth başlatılırken kritik hata: {e_oauth_init}")
     st.exception(e_oauth_init)
     st.stop()
-
 
 if 'spotify_client' not in st.session_state:
     st.session_state.spotify_client = None
@@ -194,9 +189,10 @@ if submitted_search_and_create:
         try:
             st.write("DEBUG: sp.me() çağrısı yapılacak (kimlik doğrulama/token alma)...")
             user_info = sp.me() 
+            st.write(f"DEBUG: sp.me() çağrısı TAMAMLANDI. Kullanıcı: {user_info.get('display_name', 'bilgi yok') if user_info else 'user_info None geldi'}")
             
             st.session_state.spotify_client = sp 
-            st.success(f"Spotify'a '{user_info.get('display_name', 'bilinmeyen kullanıcı')}' olarak başarıyla bağlanıldı!") # .get() ile daha güvenli
+            st.success(f"Spotify'a '{user_info.get('display_name', 'bilinmeyen kullanıcı')}' olarak başarıyla bağlanıldı!")
             st.write("DEBUG: Spotify bağlantısı başarılı.")
 
             st.write("DEBUG: Spotify client mevcut, şarkı arama ve playlist oluşturmaya geçiliyor.")
@@ -209,23 +205,22 @@ if submitted_search_and_create:
                     st.write("DEBUG: Şarkılar bulundu, create_spotify_playlist_with_tracks çağrılacak.")
                     create_spotify_playlist_with_tracks(sp, st.session_state.found_tracks, yeni_playlist_adi)
                     st.write("DEBUG: create_spotify_playlist_with_tracks tamamlandı.")
-                # else: # Bu uyarı zaten fonksiyon içinde var
-                #     st.warning("Playlist oluşturmak için hiç şarkı bulunamadı.")
         
-        except SpotifyOauthError as oauth_error: # SpotifyOauthError'u özel olarak yakala
-            st.write(f"DEBUG: SpotifyOAuthError oluştu. Kullanıcıya manuel giriş linki gösterilecek: {oauth_error}")
+        except SpotifyOauthError as oauth_error:
+            st.write(f"DEBUG: SpotifyOAuthError oluştu: {str(oauth_error)}")
             try:
                 auth_url = sp_oauth.get_authorize_url()
                 st.warning("Spotify ile kimlik doğrulamanız gerekiyor gibi görünüyor.")
                 st.markdown(f"Lütfen Spotify'a giriş yapmak ve bu uygulamaya izin vermek için **[bu linke tıklayın]({auth_url})**.", unsafe_allow_html=True)
                 st.info("İzin verdikten sonra Spotify sizi bu uygulamaya geri yönlendirecektir. Geri döndüğünüzde (tarayıcı adres çubuğunda `?code=` ile bir adres göreceksiniz), bu sayfa otomatik olarak güncellenebilir veya işlemi tamamlamak için yukarıdaki **'Şarkıları Bul ve Spotify Playlisti Oluştur' butonuna tekrar basmanız** gerekebilir.")
             except Exception as e_auth_url:
+                st.write(f"DEBUG: Yetkilendirme URL'si alınırken hata: {str(e_auth_url)}")
                 st.error(f"Spotify yetkilendirme URL'si oluşturulurken bir hata oluştu: {e_auth_url}")
             st.session_state.spotify_client = None 
         
         except Exception as e: 
-            st.write(f"DEBUG: Genel bir hata oluştu: {e}")
-            st.error(f"Beklenmedik bir hata oluştu: {type(e).__name__}")
+            st.write(f"DEBUG: Genel bir hata oluştu: {str(e)}")
+            st.error(f"Beklenmedik bir hata oluştu: {type(e).__name__} - {str(e)}")
             st.exception(e) 
             st.session_state.spotify_client = None 
 
