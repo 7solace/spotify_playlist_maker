@@ -220,5 +220,4 @@ st.sidebar.info(
     "4. Playlistiniz Spotify hesabınızda oluşturulacak ve linki burada gösterilecektir."
 )
 st.sidebar.markdown("---")
-st.sidebar.caption(f"© {2025} Playlist Oluşturucu
-made by @7grizi")
+st.sidebar.caption(f"© {2025} Playlist Oluşturucu")
