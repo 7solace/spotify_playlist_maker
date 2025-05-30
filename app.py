@@ -3,20 +3,12 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyOauthError
 
-# --- Streamlit Sayfa ve Tema Ayarları (GÜNCELLENDİ) ---
+# --- Streamlit Sayfa Ayarları ---
 st.set_page_config(
     page_title="Playlist Oluşturucu", 
     page_icon="🎶", 
     layout="centered",
-    initial_sidebar_state="auto",
-    # --- YENİ TEMA AYARI: Ana Renk Spotify Yeşili ---
-    # primaryColor="#FF4B4B" # Bu bir önceki temanın kırmızısıydı (eğer kullanıyorsak)
-    # Streamlit'in en son versiyonlarında tema renkleri doğrudan config.toml veya
-    # Streamlit Cloud arayüzünden ayarlanır. 
-    # primaryColor parametresi doğrudan set_page_config içinde olmayabilir.
-    # Eğer buton rengi değişmezse, bunu Streamlit Cloud'un tema ayarlarından yapmayı deneriz.
-    # Şimdilik bu satırı yorumda bırakıyorum, butonun tipi "primary" olduğu için temanın ana rengini alacaktır.
-    # primaryColor="#1DB954" 
+    initial_sidebar_state="auto"
 )
 
 # --- Spotify API Kimlik Bilgileri ve Ayarları ---
@@ -113,11 +105,7 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
         st.exception(e) 
         return []
 
-# --- Streamlit Arayüzü Başlangıcı (Başlık ve Alt Başlık Ortalandı) ---
-# st.title("🎶 Spotify Playlist Oluşturucu 🎶") # Eski sola yaslı başlık
-# st.markdown("Sevdiğin türe ve sanatçıya göre şarkıları bul ve **otomatik olarak Spotify playlisti oluştur!**") # Eski sola yaslı alt başlık
-
-# Yeni Ortalanmış Başlık ve Alt Başlık
+# --- Ana Başlık ve Alt Başlık (Ortalandı) ---
 st.markdown("""
 <div style="text-align: center;">
     <h1>🎶 Spotify Playlist Oluşturucu 🎶</h1>
@@ -126,7 +114,7 @@ st.markdown("""
 <br>
 """, unsafe_allow_html=True)
 
-
+# --- API Anahtarları ve OAuth Yöneticisi Kontrolü ---
 if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
     st.error("Spotify API anahtarları (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) Streamlit Secrets'da ayarlanmamış veya okunamadı! Lütfen uygulamanın Streamlit Cloud ayarlarından kontrol edin.")
     st.stop()
@@ -141,14 +129,17 @@ except Exception as e_oauth_init:
     st.exception(e_oauth_init)
     st.stop()
 
+# --- Session State Başlatma ---
 if 'token_info' not in st.session_state:
     st.session_state.token_info = sp_oauth.get_cached_token()
-
 if 'spotify_client' not in st.session_state:
     st.session_state.spotify_client = None
     if st.session_state.token_info and not sp_oauth.is_token_expired(st.session_state.token_info):
         st.session_state.spotify_client = spotipy.Spotify(auth=st.session_state.token_info['access_token'])
+if 'auth_code_processed_flag' not in st.session_state: # Bu flag'i de başlatalım
+    st.session_state.auth_code_processed_flag = False
 
+# --- OAuth Callback Mantığı ---
 try:
     auth_code = st.query_params.get("code")
 except AttributeError: 
@@ -156,7 +147,7 @@ except AttributeError:
     auth_code = query_params_experimental.get("code", [None])[0]
 
 if auth_code:
-    if not st.session_state.get('auth_code_processed_flag', False) or not st.session_state.token_info:
+    if not st.session_state.auth_code_processed_flag: # Bu kodu daha önce işlemediysek
         st.session_state.auth_code_processed_flag = True
         try:
             token_info = sp_oauth.get_access_token(auth_code, check_cache=False)
@@ -172,14 +163,15 @@ if auth_code:
             st.exception(e)
             st.session_state.token_info = None
             st.session_state.spotify_client = None
-            st.session_state.auth_code_processed_flag = False
+            st.session_state.auth_code_processed_flag = False # Hata durumunda flag'i sıfırla
 
+# --- Arayüzün Ana Mantığı ---
 if st.session_state.spotify_client and st.session_state.token_info and not sp_oauth.is_token_expired(st.session_state.token_info):
     try:
         user_info = st.session_state.spotify_client.me()
         st.success(f"Hoş geldin, {user_info.get('display_name', 'kullanıcı')}! Spotify'a bağlısın.")
     except Exception as e:
-        st.warning("Spotify bağlantınızda bir sorun var gibi görünüyor. Lütfen tekrar bağlanın.")
+        st.warning("Spotify bağlantınızda bir sorun var gibi görünüyor.")
         st.session_state.token_info = None
         st.session_state.spotify_client = None
         st.session_state.auth_code_processed_flag = False 
@@ -218,22 +210,31 @@ if st.session_state.spotify_client and st.session_state.token_info and not sp_oa
             st.experimental_set_query_params()
         st.rerun()
 else:
+    # --- KULLANICI GİRİŞ YAPMAMIŞ: YENİ ESTETİK GİRİŞ EKRANINI GÖSTER (GÜNCELLENDİ) ---
     st.write("") 
-    col1_main, col2_main, col3_main = st.columns([0.5, 2, 0.5]) 
-    with col2_main: 
-        st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png", width=120) 
-        st.header("Spotify Hesabınla Bağlan") 
-        st.write("Harika çalma listeleri oluşturmak ve müzik dünyasına dalmak için Spotify hesabınla giriş yapman gerekiyor.")
-        st.write("") 
+    _, col_content, _ = st.columns([0.5, 2, 0.5]) # Kenar boşluklarını biraz daha daralttım
+    with col_content: 
+        st.markdown(  # Logoyu HTML ve CSS ile ortalamak için
+            f""" 
+            <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+                <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Primary_Logo_RGB_Green.png" alt="Spotify Logo" width="100">
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        st.markdown("<h2 style='text-align: center; margin-bottom: 10px;'>Spotify Hesabınla Bağlan</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; margin-bottom: 20px;'>Harika çalma listeleri oluşturmak ve müzik dünyasına dalmak için Spotify hesabınla giriş yapman gerekiyor.</p>", unsafe_allow_html=True)
+        
         try:
             auth_url = sp_oauth.get_authorize_url()
             st.link_button("🔗 Spotify ile Bağlan ve Başla!", auth_url, use_container_width=True, type="primary")
-            st.caption("Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.")
+            st.markdown("<p style='text-align: center; font-size: 0.9em; opacity: 0.8; margin-top: 10px;'>Bu butona tıkladığında Spotify giriş sayfasına yönlendirileceksin. İzinleri verdikten sonra otomatik olarak uygulamaya geri döneceksin ve kullanmaya başlayabileceksin.</p>", unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Spotify yetkilendirme linki oluşturulurken bir sorun oluştu: {e}")
             st.exception(e)
-        st.write("---") 
-        st.caption("🎧 Ruh haline göre çalsın, sen keyfine bak!")
+        
+        st.markdown("<hr style='margin-top: 30px; margin-bottom: 20px; border-color: #333;'>", unsafe_allow_html=True) # Daha belirgin bir ayırıcı
+        st.markdown("<p style='text-align: center; font-size: 1.1em; font-style: italic; color: #A0A0A0;'>🎧 Ruh haline göre çalsın, sen keyfine bak!</p>", unsafe_allow_html=True) # Slogan daha belirgin
 
 # --- Sidebar ---
 st.sidebar.header("Nasıl Kullanılır?")
