@@ -1,40 +1,44 @@
 import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+from spotipy.exceptions import SpotifyOauthError # Bu hatayı özel olarak yakalamak için ekledik
 
 # --- Spotify API Kimlik Bilgileri ve Ayarları ---
+# Bu bilgiler Streamlit Cloud'daki "Secrets" bölümünden okunacak.
 CLIENT_ID = st.secrets.get("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = st.secrets.get("SPOTIPY_CLIENT_SECRET")
+# Bu URI, Streamlit Cloud uygulaman yayınlandıktan sonra alacağı genel adrese göre
+# Secrets bölümünde güncellenecek. Fallback değeri, yerelde veya Secrets henüz ayarlanmadığında kullanılır.
 REDIRECT_URI = st.secrets.get("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:8501") 
     
 SCOPE = "playlist-modify-public playlist-modify-private"
 
-# --- Spotify Kimlik Doğrulama Fonksiyonu ---
+# --- Spotify Kimlik Doğrulama Fonksiyonu (open_browser varsayılana bırakıldı - True) ---
 def get_spotify_oauth():
     if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
+        # Bu print, Streamlit Cloud loglarında görünür, UI'da değil.
         print("HATA: API Kimlik bilgileri (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) Secrets'da eksik veya okunamadı!")
-        # Bu fonksiyon arka planda çağrıldığı için st.error burada doğrudan görünmeyebilir.
-        # Ana mantıkta bu kontrol zaten var.
         return None 
     return SpotifyOAuth(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
+        redirect_uri=REDIRECT_URI, 
         scope=SCOPE
+        # open_browser=True (varsayılan)
     )
 
-# --- Playlist Oluşturma Fonksiyonu (DEBUG MESAJLARI EKLENDİ) ---
+# --- Playlist Oluşturma Fonksiyonu (DEBUG mesajları eklendi) ---
 def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public=True, description="Streamlit ile oluşturuldu"):
     if not tracks_to_add:
         st.warning("Playliste eklenecek şarkı bulunamadı.")
         return None
     try:
         st.write("DEBUG: Playlist oluşturma fonksiyonu başladı.")
-        st.write("DEBUG: Kullanıcı ID'si alınacak...")
+        st.write("DEBUG: Kullanıcı ID'si alınacak (sp.me())...")
         user_id = sp.me()["id"] 
         st.write(f"DEBUG: Kullanıcı ID'si alındı: {user_id}")
         
-        st.write(f"DEBUG: '{playlist_name}' adında playlist oluşturulacak...")
+        st.write(f"DEBUG: '{playlist_name}' adında playlist oluşturulacak (sp.user_playlist_create)...")
         playlist = sp.user_playlist_create(
             user=user_id,
             name=playlist_name,
@@ -43,14 +47,14 @@ def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public
         )
         playlist_id = playlist["id"]
         playlist_url = playlist["external_urls"]["spotify"]
-        st.write(f"DEBUG: Playlist oluşturuldu. ID: {playlist_id}, URL: {playlist_url}")
+        st.write(f"DEBUG: Playlist oluşturuldu. ID: {playlist_id}")
 
         track_uris = [track["uri"] for track in tracks_to_add if track.get("uri")]
         if not track_uris:
             st.warning("Eklenecek geçerli şarkı URI'si bulunamadı.")
             return playlist_url 
         
-        st.write(f"DEBUG: {len(track_uris)} şarkı playliste eklenecek: {playlist_id}")
+        st.write(f"DEBUG: {len(track_uris)} şarkı playliste eklenecek (sp.playlist_add_items)...")
         sp.playlist_add_items(playlist_id, track_uris)
         st.write("DEBUG: Şarkılar playliste eklendi.")
         
@@ -60,13 +64,12 @@ def create_spotify_playlist_with_tracks(sp, tracks_to_add, playlist_name, public
     except Exception as e:
         st.write(f"DEBUG: create_spotify_playlist_with_tracks içinde hata: {str(e)}")
         st.error(f"Spotify playlisti oluşturulurken veya şarkılar eklenirken hata: {e}")
-        st.exception(e) # Hatanın detayını arayüze yazdırır
+        st.exception(e)
         return None
 
-# --- Ana Arama ve Listeleme Fonksiyonu (DEBUG MESAJLARI EKLENDİ) ---
+# --- Ana Arama ve Listeleme Fonksiyonu (DEBUG mesajları eklendi) ---
 def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
     info_mesaji = f"Spotify'da"
-    # ... (info_mesaji oluşturma kısmı aynı, önceki koddan kopyalayabilirsin) ...
     if muzik_turu:
         info_mesaji += f" '{muzik_turu.capitalize()}' türünde"
     if sanatci_adi_str:
@@ -76,19 +79,20 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
     else: 
         info_mesaji += "" 
     info_mesaji += f" {sarki_sayisi} şarkı aranıyor..."
-    st.info(info_mesaji) # Bu kalsın
+    # st.info(info_mesaji) # Bu mesajı DEBUG mesajları varken kapatalım, çok kalabalık olmasın
     
     query_parts = []
-    # ... (query_parts oluşturma kısmı aynı) ...
     if muzik_turu:
         query_parts.append(f"genre:\"{muzik_turu.strip()}\"")
     if sanatci_adi_str:
         query_parts.append(f"artist:\"{sanatci_adi_str.strip()}\"")
+        
     if not query_parts:
         st.warning("Arama yapmak için lütfen en az bir müzik türü veya sanatçı adı girin.")
         return []
+        
     query = " ".join(query_parts)
-    st.info(f"Gönderilen sorgu: {query}") # Bu da kalsın
+    st.info(f"Gönderilen sorgu: {query}") # Bu kalsın, önemli
 
     st.write("DEBUG: spotify_sarki_ara_ve_goster fonksiyonu başladı.")
     try:
@@ -108,8 +112,8 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
             return [] 
 
         st.subheader("🎶 Bulunan Şarkılar (Playlist'e Eklenmek Üzere): 🎶")
-        # ... (Şarkıları gösterme döngüsü aynı, içine debug mesajı eklemeye gerek yok şimdilik) ...
         for i, track_item in enumerate(tracks):
+            # ... (şarkı gösterme kısmı aynı, bir önceki koddan kopyalayabilirsin) ...
             sarki_adi = track_item.get('name', 'Bilinmeyen Şarkı')
             sanatcilar_list_api = [artist.get('name', 'Bilinmeyen Sanatçı') for artist in track_item.get('artists', [])]
             sanatcilar_gosterim = ", ".join(sanatcilar_list_api)
@@ -135,7 +139,7 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
                 st.write(f"**Albüm:** {album_adi}")
                 if spotify_url:
                     st.markdown(f"   [Şarkıyı Spotify'da Dinle]({spotify_url})")
-            st.write("---") 
+            st.write("---")
         st.write("DEBUG: spotify_sarki_ara_ve_goster fonksiyonu sonlanıyor, şarkılar döndürülüyor.")
         return tracks 
     except Exception as e:
@@ -144,20 +148,27 @@ def spotify_sarki_ara_ve_goster(sp, muzik_turu, sarki_sayisi, sanatci_adi_str):
         st.exception(e) 
         return []
 
-# --- Streamlit Arayüzü (Ana mantık) ---
+# --- Streamlit Arayüzü ---
 st.set_page_config(page_title="Playlist Oluşturucu", page_icon="🎶", layout="centered")
 st.title("🎶 Spotify Playlist Oluşturucu 🎶")
 st.markdown("Sevdiğin türe ve sanatçıya göre şarkıları bul ve **otomatik olarak Spotify playlisti oluştur!**")
 
-if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
+if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI :
     st.error("Spotify API anahtarları (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) Streamlit Secrets'da ayarlanmamış veya okunamadı! Lütfen uygulamanın Streamlit Cloud ayarlarından kontrol edin.")
     st.caption("Eğer bu mesajı yerelde görüyorsanız, kodun en başındaki CLIENT_ID, CLIENT_SECRET ve REDIRECT_URI değişkenlerine kendi bilgilerinizi girmeniz veya .streamlit/secrets.toml dosyası oluşturmanız gerekir.")
     st.stop()
 
-sp_oauth = get_spotify_oauth() 
-if sp_oauth is None: 
-    st.error("Spotify OAuth ayarları başlatılamadı. API anahtarlarını kontrol edin (Secrets).")
+# sp_oauth en başta tanımlanmalı ki her yerde kullanılabilsin.
+try:
+    sp_oauth = get_spotify_oauth() 
+    if sp_oauth is None: 
+        st.error("Spotify OAuth ayarları başlatılamadı. API anahtarları (Secrets) doğru girildi mi?")
+        st.stop()
+except Exception as e_oauth_init:
+    st.error(f"Spotify OAuth başlatılırken kritik hata: {e_oauth_init}")
+    st.exception(e_oauth_init)
     st.stop()
+
 
 if 'spotify_client' not in st.session_state:
     st.session_state.spotify_client = None
@@ -177,15 +188,18 @@ if submitted_search_and_create:
     elif not yeni_playlist_adi:
         st.warning("Lütfen oluşturulacak playlist için bir ad girin.")
     else:
-        st.write("DEBUG: Butona tıklandı, Spotify bağlantısı deneniyor...")
+        st.write("DEBUG: Butona tıklandı, Spotify bağlantısı ve işlemi deneniyor...")
         sp = spotipy.Spotify(auth_manager=sp_oauth)
+        
         try:
-            st.write("DEBUG: sp.me() çağrısı yapılacak (kimlik doğrulama testi)...")
+            st.write("DEBUG: sp.me() çağrısı yapılacak (kimlik doğrulama/token alma)...")
             user_info = sp.me() 
-            st.session_state.spotify_client = sp 
-            st.success(f"Spotify'a '{user_info['display_name']}' olarak başarıyla bağlanıldı!")
-            st.write("DEBUG: Spotify bağlantısı başarılı, şarkı arama ve playlist oluşturmaya geçiliyor.")
             
+            st.session_state.spotify_client = sp 
+            st.success(f"Spotify'a '{user_info.get('display_name', 'bilinmeyen kullanıcı')}' olarak başarıyla bağlanıldı!") # .get() ile daha güvenli
+            st.write("DEBUG: Spotify bağlantısı başarılı.")
+
+            st.write("DEBUG: Spotify client mevcut, şarkı arama ve playlist oluşturmaya geçiliyor.")
             with st.spinner("Şarkılar aranıyor ve playlist oluşturuluyor... Lütfen bekleyin... ⏳"):
                 st.write("DEBUG: Spinner başlatıldı. spotify_sarki_ara_ve_goster çağrılacak.")
                 st.session_state.found_tracks = spotify_sarki_ara_ve_goster(sp, muzik_turu, int(sarki_sayisi_st), istege_bagli_sanatci_st)
@@ -195,22 +209,33 @@ if submitted_search_and_create:
                     st.write("DEBUG: Şarkılar bulundu, create_spotify_playlist_with_tracks çağrılacak.")
                     create_spotify_playlist_with_tracks(sp, st.session_state.found_tracks, yeni_playlist_adi)
                     st.write("DEBUG: create_spotify_playlist_with_tracks tamamlandı.")
-                else:
-                    st.warning("Playlist oluşturmak için hiç şarkı bulunamadı.") # Bu mesaj zaten fonksiyonda da var.
-        except Exception as auth_error:
-            st.write(f"DEBUG: Ana try-except bloğunda hata: {str(auth_error)}")
-            st.error(f"Spotify kimlik doğrulaması veya işlem sırasında bir sorun oluştu: {type(auth_error).__name__}")
-            st.info(f"Lütfen sayfayı yenileyip tekrar deneyin. Sorun devam ederse, Spotify Geliştirici Panelindeki Yönlendirme URI'nizin ({REDIRECT_URI}) Streamlit Cloud Secrets'dakiyle aynı ve uygulamanızın genel adresi olduğundan emin olun.")
-            st.exception(auth_error) # Hatanın detayını arayüze yazdırır
+                # else: # Bu uyarı zaten fonksiyon içinde var
+                #     st.warning("Playlist oluşturmak için hiç şarkı bulunamadı.")
+        
+        except SpotifyOauthError as oauth_error: # SpotifyOauthError'u özel olarak yakala
+            st.write(f"DEBUG: SpotifyOAuthError oluştu. Kullanıcıya manuel giriş linki gösterilecek: {oauth_error}")
+            try:
+                auth_url = sp_oauth.get_authorize_url()
+                st.warning("Spotify ile kimlik doğrulamanız gerekiyor gibi görünüyor.")
+                st.markdown(f"Lütfen Spotify'a giriş yapmak ve bu uygulamaya izin vermek için **[bu linke tıklayın]({auth_url})**.", unsafe_allow_html=True)
+                st.info("İzin verdikten sonra Spotify sizi bu uygulamaya geri yönlendirecektir. Geri döndüğünüzde (tarayıcı adres çubuğunda `?code=` ile bir adres göreceksiniz), bu sayfa otomatik olarak güncellenebilir veya işlemi tamamlamak için yukarıdaki **'Şarkıları Bul ve Spotify Playlisti Oluştur' butonuna tekrar basmanız** gerekebilir.")
+            except Exception as e_auth_url:
+                st.error(f"Spotify yetkilendirme URL'si oluşturulurken bir hata oluştu: {e_auth_url}")
+            st.session_state.spotify_client = None 
+        
+        except Exception as e: 
+            st.write(f"DEBUG: Genel bir hata oluştu: {e}")
+            st.error(f"Beklenmedik bir hata oluştu: {type(e).__name__}")
+            st.exception(e) 
             st.session_state.spotify_client = None 
 
 st.sidebar.header("Nasıl Kullanılır?")
-# ... (sidebar kısmı aynı) ...
 st.sidebar.info(
     "1. Gerekli alanları doldurun.\n"
     "2. 'Şarkıları Bul ve Spotify Playlisti Oluştur' butonuna tıklayın.\n"
-    "3. Gerekirse Spotify kimlik doğrulama adımlarını (tarayıcı üzerinden) tamamlayın.\n"
-    "4. Playlistiniz Spotify hesabınızda oluşturulacak ve linki burada gösterilecektir."
+    "3. **İlk kullanımda veya uzun bir aradan sonra,** tarayıcınızda yeni bir sekme açılarak Spotify sizden giriş yapmanızı ve izin vermenizi isteyebilir (veya size tıklamanız için bir link gösterilebilir). Bu adımları tamamlayın.\n"
+    "4. İzin verdikten sonra, Spotify sizi uygulamaya geri yönlendirecektir. Bu işlemden sonra bazen Streamlit sayfasındaki butona **tekrar** tıklamanız gerekebilir.\n"
+    "5. Playlistiniz Spotify hesabınızda oluşturulacak ve linki burada gösterilecektir."
 )
 st.sidebar.markdown("---")
 st.sidebar.caption(f"© {2025} Playlist Oluşturucu")
